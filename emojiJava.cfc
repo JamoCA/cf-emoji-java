@@ -32,6 +32,11 @@ component
 		}
 		return aliasList;
 	}
+	private any function deserializeEmoji(required any source) output=false hint="convert emoji object to regular CF struct" {
+		var result = deserializeJson(SerializeJSON(arguments.source));
+		StructDelete(result, "HtmlHexidecimal");
+		return result;
+	}
 
 	/* EmojiManager */
 	public array function getForTag(required string tag) output=false hint="Returns an array of structures containing data associated with the given tag." {
@@ -39,14 +44,14 @@ component
 		var iterator = result.iterator();
 		var tempResult = [];
 		while(iterator.hasNext()){
-			arrayAppend(tempResult, deserializeJson(SerializeJSON(iterator.next())));
+			arrayAppend(tempResult, deserializeEmoji(iterator.next()));
 		}
 		return tempResult;
 	}
 
 	public struct function getForAlias( required string alias) output=false hint="Returns a structure containing data associated with the given alias." {
 		var result = variables.EmojiManager.getForAlias( arguments.alias );
-		return deserializeJson(SerializeJSON(result));
+		return deserializeEmoji(result);
 	}
 
 	public array function getAll() output=false hint="Returns an array with all the emoji structs." {
@@ -54,7 +59,7 @@ component
 		var iterator = result.iterator();
 		var tempResult = [];
 		while(iterator.hasNext()){
-			arrayAppend(tempResult, deserializeJson(SerializeJSON(iterator.next())));
+			arrayAppend(tempResult, deserializeEmoji(iterator.next()));
 		}
 		return tempResult;
 	}
