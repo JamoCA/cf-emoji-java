@@ -24,7 +24,7 @@ component
 		if (isSimpleValue(arguments.source) ){
 			arguments.source = listtoArray(arguments.source);
 		}
-		if (NOT isArray(arguments.source) ){
+		if (!isArray(arguments.source) ){
 			arguments.source = [];
 		}
 		for (thisAlias in arguments.source) {
@@ -135,3 +135,4 @@ component
 	}
 
 }
+
