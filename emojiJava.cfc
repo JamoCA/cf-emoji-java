@@ -5,11 +5,10 @@ component
 	accessors=false {
 
 	/*
-		* Version 1.0 - January 16, 2020
-		* Blog Entry:
+		* Version 1.1.0 - April 26, 2026
+		* CFC: https://github.com/JamoCA/cf-emoji-java
 		* Java Library: https://github.com/vdurmont/emoji-java (by Vincent Durmont)
 		* Emoji Alias List: https://github.com/vdurmont/emoji-java/blob/master/EMOJIS.md
-		* CFC:
 	*/
 
 	public component function init() output=false hint="initialize emoji-java library" {
@@ -34,6 +33,7 @@ component
 	}
 	private any function deserializeEmoji(required any source) output=false hint="convert emoji object to regular CF struct" {
 		var result = deserializeJson(SerializeJSON(arguments.source));
+		// emoji-java 5.1.1 emits a misspelled "HtmlHexidecimal" key alongside the correct "HtmlHexadecimal"; strip the duplicate.
 		StructDelete(result, "HtmlHexidecimal");
 		return result;
 	}
@@ -55,7 +55,7 @@ component
 	}
 
 	public array function getAll() output=false hint="Returns an array with all the emoji structs." {
-		result = variables.EmojiManager.getAll();
+		var result = variables.EmojiManager.getAll();
 		var iterator = result.iterator();
 		var tempResult = [];
 		while(iterator.hasNext()){
@@ -88,7 +88,7 @@ component
 	}
 
 	/* EmojiParser */
-	public string function parseToAliases( required string text ) output=false html="Replaces all the emoji's unicodes found in a string by their aliases." {
+	public string function parseToAliases( required string text ) output=false hint="Replaces all the emoji's unicodes found in a string by their aliases." {
 		return variables.EmojiParser.parseToAliases( arguments.text);
 	}
 
@@ -109,7 +109,7 @@ component
 	}
 
 	public string function removeEmojis( required string text, any emojisToRemove=[] ) output=false hint="Removes emojis listed in the 'emojisToRemove' parameter (list or array) from the string. Use 'alias'." {
-		return variables.EmojiParser.removeEmojis( arguments.text, makeEmojiCollection(emojisToRemove) );
+		return variables.EmojiParser.removeEmojis( arguments.text, makeEmojiCollection(arguments.emojisToRemove) );
 	}
 
 	public string function replaceAllEmojis( required string text, required string replacementText) output=false hint="Replaces all emojis with text string with the replacementText string." {
@@ -124,7 +124,7 @@ component
 		while(iterator.hasNext()){
 			currentEmoji = iterator.next();
 			if (isEmoji(currentEmoji)){
-				if (returnAsStruct){
+				if (arguments.returnAsStruct){
 					arrayAppend(tempResult, getForAlias(parseToAliases(currentEmoji)));
 				} else {
 					arrayAppend(tempResult, currentEmoji);

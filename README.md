@@ -1,19 +1,48 @@
 # cf-emoji-java
 
-_ColdFusion wrapper for [emoji-java](https://github.com/vdurmont/emoji-java) (a lightweight java library that helps you use Emojis in your java applications) to identify, sanitize and convert emojis for CFML projects._
+A ColdFusion wrapper around the [emoji-java](https://github.com/vdurmont/emoji-java) Java library. Detect, strip, replace, and convert emojis from CFML without dealing with the Java API directly.
+
+## Why this exists
+
+Emojis are surprisingly hard. They're variable-width, sometimes multi-codepoint, sometimes joined by zero-width joiners, sometimes modified by skin-tone selectors. CFML's string functions don't really know any of that. emoji-java handles the messy parts and exposes a clean API for the things you actually want to do: detect, strip, replace, list, and convert between unicode and shortcode forms.
+
+This CFC is a thin wrapper. It does not add features beyond what emoji-java provides; it just makes the Java API ergonomic to call from CFML.
+
+## A note on emoji-java
+
+emoji-java is no longer actively maintained. Version 5.1.1, bundled in `lib/`, is the last public release. It works for the emoji set it knows about (Unicode 11.0, circa 2018), but newer additions like fortune cookies, ninjas, and the wider 2020+ glyphs aren't in its data file. If you need bleeding-edge emoji coverage, you'll want a different library.
+
+For the common cases (sanitizing user input, generating shortcode output for storage, stripping emojis before writing to a non-UTF-8 column, counting visible characters), 5.1.1 is fine.
 
 ## Installation
 
-Download the JAR file directly from the emoji-java's [releases tab](https://github.com/vdurmont/emoji-java/releases) on GitHub. Add the JAR file to the global Java classpath, use [javaSettings](https://cfdocs.org/java) in application.cfc or use [JavaLoader](https://github.com/markmandel/JavaLoader).)
+### Manual
 
+Grab `emoji-java-5.1.1.jar` from emoji-java's [releases](https://github.com/vdurmont/emoji-java/releases). Then either:
+
+- Drop the JAR into a folder loaded via `this.javaSettings.loadPaths` in your `Application.cfc`. This is what the bundled `Application.cfc` does - it points at the local `lib/` folder.
+- Add the JAR to the global Java classpath.
+- Load it dynamically with [JavaLoader](https://github.com/markmandel/JavaLoader).
+
+The first option is simplest for application-scoped deployments and is the path the demo and tests in this repo assume.
+
+## Running the demo
+
+Visit `/demo.cfm`. The demo exercises every public method with preset inputs covering simple cases plus the awkward ones (ZWJ family sequences, skin-tone modifiers, mixed unicode, plain text).
+
+## Running tests
+
+Visit `/tests/test_emojiJava.cfm`. The runner is plain CFML; no TestBox or MXUnit needed. Each assertion prints a green check or red X, and the page returns HTTP 500 if any assertion fails, so it works with `curl` and CI:
 
 ## Usage
 
-Instantiate the component:
+Instantiate once:
 
 ```js
 emojijava = new emojijava();
 ```
+
+The constructor creates Java references to `EmojiManager` and `EmojiParser` and stores them in the variables scope. It's safe to cache the instance in `application` scope; emoji-java is thread-safe for read operations and the wrapper performs no per-call mutation.
 
 ## emojijava.getForAlias(alias);
 
@@ -113,7 +142,7 @@ emojijava.removeEmojis(text, "pizza");  // I ❤️
 
 Replaces all emojis with text string with the replacementText string.
 ```js
-emojijava.removeEmojis('I ❤️ 🍕', "[emoji]");  // I [emoji] [emoji]
+emojijava.replaceAllEmojis('I ❤️ 🍕', "[emoji]");  // I [emoji] [emoji]
 ```
 
 ## emojijava.extractEmojis(text, _returnAsStruct_);
@@ -124,6 +153,24 @@ emojijava.extractEmojis('I ❤️ 🍕');  // I ["❤️", "🍕"]
 emojijava.extractEmojis('I ❤️ 🍕', true);  // an array of structs w/emoji data
 ```
 
+## A few things worth knowing
+
+- `len(text)` returns UTF-16 code units, not codepoints. Most emojis are surrogate pairs, so `len("🍕")` is 2. If you want codepoints, call `text.codePointCount(0, len(text))`. For an approximate visible/grapheme count, do `len(replaceAllEmojis(text, "X"))`.
+- `parseToAliases` is idempotent on its own output. Running it twice produces the same string as running it once.
+- `extractEmojis(text, true)` re-runs the alias parser internally to look up each match, which is fine for small inputs but pays for itself if you're calling it in a tight loop. For bulk work, prefer `extractEmojis(text)` and look up structs only when you need them.
+- Skin-tone modifiers (Fitzpatrick scale) are returned as separate emojis from their base in 5.1.1. `extractEmojis("👍🏽")` returns `["👍", "🏽"]`. Same goes for ZWJ-joined family sequences; they decompose. If you need grouped extraction, do it yourself by walking the byte offsets.
+- Caching `emojijava.getAll()` in `application` scope is worth doing if your app calls it more than once per request. The underlying data is static for the life of the JVM, and the deserialization is the slow part of the call.
+
+## Romanization (optional)
+
+The demo includes an optional romanization section using [AnyAscii](https://github.com/anyascii/anyascii). To enable it, drop the AnyAscii Java JAR into `lib/` and create a small `AnyAscii.cfc` wrapper exposing a `transliterate(text)` method. This project does not bundle the JAR - AnyAscii's data table is significantly larger than emoji-java itself, and most users of this library don't need romanization, so it's left as a soft dependency.
+
+If you do enable it, the demo block will start working automatically. There's nothing else to wire up.
+
+## License
+
+MIT. See `LICENSE`.
+
 ## Acknowledgements
 
-cf-emoji-java uses the java library provided by the [github/vdurmont/emoji-java](https://github.com/vdurmont/emoji-java) project.
+Built around the Java library at [github/vdurmont/emoji-java](https://github.com/vdurmont/emoji-java) by Vincent Durmont. The optional romanization integration is built around [AnyAscii](https://github.com/anyascii/anyascii).
